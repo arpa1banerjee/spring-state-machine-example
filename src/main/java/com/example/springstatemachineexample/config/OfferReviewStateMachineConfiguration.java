@@ -49,17 +49,15 @@ public class OfferReviewStateMachineConfiguration extends StateMachineConfigurer
                 .withStates()
                 .initial(NEW_OFFER_CREATED)
                 .end(OFFER_PUBLISHED)
-                .states(new HashSet<>(Arrays.asList(OFFER_IMAGE_ANALYSED, OFFER_VIDEO_ANALYSED)))
-                .state(OFFER_IMAGE_ANALYSED, executeAction(), errorAction())
-                .state(OFFER_VIDEO_ANALYSED, executeAction(), errorAction());
+                .states(new HashSet<>(Arrays.asList(OFFER_IMAGE_ANALYSED, OFFER_VIDEO_ANALYSED)));
     }
 
     @Override
     public void configure(StateMachineTransitionConfigurer<OfferState, OfferEvent> transitions) throws Exception {
         transitions.withExternal()
-                .source(NEW_OFFER_CREATED).target(OFFER_IMAGE_ANALYSED).event(IMAGE_ANALYSIS).and()
+                .source(NEW_OFFER_CREATED).target(OFFER_IMAGE_ANALYSED).event(IMAGE_ANALYSIS).action(analyseImage()).and()
                 .withExternal()
-                .source(OFFER_IMAGE_ANALYSED).target(OFFER_VIDEO_ANALYSED).event(VIDEO_ANALYSIS).and()
+                .source(OFFER_IMAGE_ANALYSED).target(OFFER_VIDEO_ANALYSED).event(VIDEO_ANALYSIS).action(analyseVideo()).and()
                 .withExternal()
                 .source(OFFER_VIDEO_ANALYSED).target(OFFER_PUBLISHED).event(PUBLISH).guard(publishGuard());
     }
@@ -76,9 +74,10 @@ public class OfferReviewStateMachineConfiguration extends StateMachineConfigurer
     }
 
     @Bean
-    public Action<OfferState, OfferEvent> executeAction() {
+    public Action<OfferState, OfferEvent> analyseImage() {
         return ctx -> {
             log.info("Execute {}. Do something here....", ctx.getTarget().getId());
+
             int passedStepCount = (int) ctx
                     .getExtendedState()
                     .getVariables()
@@ -92,13 +91,19 @@ public class OfferReviewStateMachineConfiguration extends StateMachineConfigurer
     }
 
     @Bean
-    public Action<OfferState, OfferEvent> errorAction() {
+    public Action<OfferState, OfferEvent> analyseVideo() {
         return ctx -> {
-            if(!Objects.isNull(ctx.getException())) {
-                log.error("Error {} {}", ctx
-                        .getSource()
-                        .getId(), ctx.getException());
-            }
+            log.info("Execute {}. Do something here....", ctx.getTarget().getId());
+
+            int passedStepCount = (int) ctx
+                    .getExtendedState()
+                    .getVariables()
+                    .getOrDefault(PASSED_STEP_COUNT, 0);
+            passedStepCount++;
+            ctx
+                    .getExtendedState()
+                    .getVariables()
+                    .put(PASSED_STEP_COUNT, passedStepCount);
         };
     }
 }
